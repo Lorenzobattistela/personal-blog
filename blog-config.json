@@ -1,0 +1,12 @@
+{
+  "blog_locale": "en",
+  "blog_title": "Lorenzo's Portal",
+  "blog_description": "Learning in Public! Quick Blogging.",
+  "blog_theme": "black-and-white",
+  "blog_author": "Lorenzo Battistela",
+  "blog_author_url": "https://br.linkedin.com/in/lorenzo-battistela",
+  "blog_no_posts_hint": "No posts yet",
+  "blog_posted_by_hint": "Posted by:",
+  "blog_url": "https://blogcompleteurl.com",
+  "blog_prism_theme": "prism-tomorrow"
+}
