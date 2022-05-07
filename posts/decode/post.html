@@ -1,0 +1,111 @@
+<!--:::{
+  "post_title": "How to decode a swap transaction",
+  "post_description": "How to decode a swap transaction on Uniswap using Javascript.",
+  "post_created_at": "Thu May 05 2022 18:55:29 GMT-0300 (Horário Padrão de Brasília)"
+}:::-->
+
+<p>
+  <h1>How to decode a swap transaction</h1>
+  <p>Swap transactions are really common on our web3 ecosystem, since trading one token for another is really useful.
+    That said, I will start this article storytelling a bit about my past week. I was working on Experimento MELK, a Learn-To-Earn project
+    that requires textual proves (like addresses, transaction hashes, values and so) as a validation proof of the mission completion. 
+    For more information about the project, you can <a href="https://melk.gitbook.io/aprenda-e-ganhe/">read more here</a> (content in PT-BR).
+    Anyway, I was working on a mission and I needed to check what was the value swaped, example: person swapped 1 USDC to X MATIC. I needed to access this 1 USDC value. On a simple transference transaction like me sending 1 USDC to you, all we need to know is the token contract address, and we can access the value using librarys like <code>ethers.js</code> and <code>web3.js</code>. However, in this particular case the value is neither returned in the standard transaction object nor using the token contract. This happens because the DEX that was being used (in this case Uniswap) uses multicall functions to do the swap.
+  </p>
+  <p>After I discovered that I could not get the swap value by default, my first thought was to read the input value of the transaction object. But how could I do this? Let’s code a little bit!</p>
+
+  <h1>Diving into the code</h1>
+  <p>First of all, we are going to use the library <code>web3.js</code> In this code example, I will show how to get the value swapped on uniswap. Let’s import all libs we need. In case you do not have those installed you can install it with <code>npm i /package-name/</code>. </p>
+  <hr>
+  <code lang="javascript">
+    const Web3 = require('web3');
+    const web3 = new Web3(`https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
+    const abiDecoder = require("abi-decoder");
+    let abi = require('../data/uniswapAbi.json');
+  </code>
+  <hr>
+  <p>For this article, I am using Alchemy API to connect to the mainnet, and my alchemy API key is stored at ENV. The ABI variable gets the ABI data that I stored on a JSON file. But the ABI can be found <a href="https://polygonscan.com/address/0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45#code">here</a>. AbiDecoder is the library that will help us to decode the input data. Now let’s get the transaction.</p>
+
+  <code lang="javascript">
+    let transaction = await web3.eth.getTransaction("0x40d84ef37bc95ce4d563df0630e1ea68132a9386064a03b41a66e8a82cace56b");
+  </code>
+  <hr>
+  <p>Good. Now we have the transaction object for that hash. Now lets start the decoding.</p>
+  <code lang="javascript">
+    // decode transaction input <br>
+    const data = abiDecoder.decodeMethod(transaction.input);<br>
+    <br>
+    //filter input data, find transaction value<br>
+    let filteredData = data.params.filter((param) => param.name === 'data');<br>
+    <br>
+    // select hex data with transaction value<br>
+    let hexDat = filteredData[0].value[0];<br>
+    <br>
+    // decode hex data<br>
+    let decodedData = abiDecoder.decodeMethod(hexDat);<br>
+    <br>
+    // select swap value<br>
+    let amount = decodedData.params[0].value.amountIn;<br>
+    amount = ethers.utils.formatEther(amount);<br>
+  </code>
+  <hr>
+  <p>Let’s go through this code. First we are getting decoded data from the transaction input. Transaction input looks like this: 
+    <br>
+  <code>0x5ae401dc00...</code><br>. Yeah, we cannot read this right? So we pass it do abiDecoder, and it will return another object, like this:
+  <br>
+  <hr>
+  <samp>
+    {
+      name: 'multicall',
+      params: [
+          { name: 'deadline', value: '1650201409', type: 'uint256' },
+          { name: 'data', value: [Array], type: 'bytes[]' }
+        ]
+    }
+  </samp>
+  </p>
+  <hr>
+  <p>
+    Ok, now we are getting close to our solution. Here we have the name and parameters of this multicall function. We need to access the
+    second param, named data. Inside of it is where our value lives. Let’s do it.
+    <hr>
+    <br>
+    <code>
+      //filter input data, find transaction value<br>
+      let filteredData = data.params.filter((param) => param.name === 'data');<br>
+      <br>
+
+      // select hex data with transaction value<br>
+      let hexDat = filteredData[0].value[0];<br>
+    </code>
+    <hr>
+  </p>
+  <p>Well, here we are selecting the second param named data using filter function. This will return the param data of the object above. This will return another object, like this: <br>
+  <hr>
+  <samp>
+    [
+      {
+        name: 'data',
+        value: [
+            '0x04...'
+        ],
+        type: 'bytes[]'
+      }
+    ]
+  </samp>
+  <br>
+  <hr>
+  </p>
+  <p>In the code above i removed the value because it will be a huge hexadecimal value. But now we have to read this hexadecimal called value. So in the line <code>hexDat = filteredData[0].value[0];</code> we are selecting the field value of our filteredData, selecting the value array and getting the first element in the array, that is the value passed to the swap function. But the value is still encoded by hexadecimal, so lets decode it!</p><br>
+  <hr>
+  <code>
+    // decode hex data
+    let decodedData = abiDecoder.decodeMethod(hexDat);
+
+    // select swap value
+    let amount = decodedData.params[0].value.amountIn;
+    amount = ethers.utils.formatEther(amount);
+  </code>
+  <hr>
+  <p>And thats it! Now we decoded the hexadecimal data, and in the variable amount we access the value of amountIn, that is present in our decoded object. This value represents the value swapped in the transaction. Now we just format it with <code>formatEther</code> and... Done!</p>
+</p>
